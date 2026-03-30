@@ -91,6 +91,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <string>
+#include <sstream>
 
 #include "database.h"
 #include "sdchars.h"
@@ -6644,6 +6646,12 @@ extern void erase_last_n(int n);
 // This is in sdui-wincon.cpp only.  It is used in sdtty only, not sd.
 extern void put_line(const char the_line[]);
 
+// Temporary wrapper around put_line(const char the_line[]), until I
+// reimplement it using std::string_view.
+inline void put_line(std::string_view the_line) {
+  put_line(std::string(the_line).c_str());
+}
+
 // Write a single character on the current output line.
 extern void put_char(int c);
 
@@ -6663,6 +6671,25 @@ extern int get_char();
 /* Get string from input, up to <newline>, with echoing and editing.
    Return it without the final <newline>. */
 extern void get_string(char *dest, int max);
+
+// Temporary wrapper around get_string(char *dest, int max), until I
+// reimplement it using std::string.
+template <int N>
+inline void get_string(std::string *dest) {
+   char buffer[N];
+   get_string(buffer, N);
+   *dest = buffer;
+}
+
+// Concatenate any number of objects into a std::string, useful for
+// replacing sprintf() calls.  If we upgrade the build to C++20, we
+// could use std::format() instead and delete this function.
+template <typename... Args>
+inline std::string to_string(const Args&... args) {
+   std::stringstream ss;
+   (ss << ... << args);
+   return ss.str();
+}
 
 /* Ring the bell, or whatever. */
 extern void ttu_bell();
