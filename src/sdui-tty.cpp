@@ -450,18 +450,18 @@ void iofull::create_menu(call_list_kind cl)
 
 
 
-void iofull::set_window_title(char s[])
+void iofull::set_window_title(Cstring s)
 {
-   char full_text[MAX_TEXT_LINE_LENGTH];
+   std::string full_text;
 
    if (journal_name[0]) {
-      sprintf(full_text, "Sdtty %s {%s}", s, journal_name);
+      full_text = to_string("Sdtty ", s, " {", journal_name, "}");
    }
    else {
-      sprintf(full_text, "Sdtty %s", s);
+      full_text = to_string("Sdtty ", s);
    }
 
-   ttu_set_window_title(full_text);
+   ttu_set_window_title(full_text.c_str());
 }
 
 
@@ -1024,37 +1024,36 @@ uims_reply_thing iofull::get_resolve_command()
 }
 
 
-popup_return iofull::get_popup_string(Cstring prompt1, Cstring prompt2, Cstring final_inline_prompt,
-                                      Cstring /*seed*/, char *dest)
+popup_return iofull::get_popup_string(std::string_view prompt1, std::string_view prompt2,
+                                      std::string_view final_inline_prompt,
+                                      std::string_view /*seed*/, std::string *dest)
 {
    // We ignore the "seed".  But Sd might use it.
 
    // Two lines of prompts are allowed.  But if they start with an asterisk,
    // Sd shows it but Sdtty does not.
 
-   if (prompt1 && prompt1[0] && prompt1[0] != '*') {
+   if (!prompt1.empty() && prompt1[0] != '*') {
       get_utils_ptr()->writestuff(prompt1);
       get_utils_ptr()->newline();
    }
 
-   if (prompt2 && prompt2[0] && prompt2[0] != '*') {
+   if (!prompt2.empty() && prompt2[0] != '*') {
       get_utils_ptr()->writestuff(prompt2);
       get_utils_ptr()->newline();
    }
 
-   char buffer[MAX_TEXT_LINE_LENGTH];
-   sprintf(buffer, "%s ", final_inline_prompt);
-   put_line(buffer);
-   get_string(dest, MAX_TEXT_LINE_LENGTH);
+   put_line(to_string(final_inline_prompt, " "));
+   get_string<MAX_TEXT_LINE_LENGTH>(dest);
    // Backspace at start of line declines the popup.
-   if (dest[0] == '\b') return POPUP_DECLINE;
+   if ((*dest)[0] == '\b') return POPUP_DECLINE;
 
    current_text_line++;
-   return dest[0] ? POPUP_ACCEPT_WITH_STRING : POPUP_ACCEPT;
+   return !dest->empty() ? POPUP_ACCEPT_WITH_STRING : POPUP_ACCEPT;
 }
 
 
-static int confirm(Cstring question)
+static int confirm(std::string_view question)
 {
    for (;;) {
       put_line(question);
@@ -1235,7 +1234,7 @@ uint32_t iofull::get_one_number(matcher_class &matcher)
  * is volatile, so we must copy it if we need it to stay around.
  */
 
-void iofull::add_new_line(const char the_line[], uint32_t drawing_picture)
+void iofull::add_new_line(std::string_view the_line, uint32_t drawing_picture)
 {
     put_line(the_line);
     put_line("\n");

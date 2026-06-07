@@ -1369,9 +1369,9 @@ extern int process_session_info(Cstring *error_msg)
       }
 
       if (num_fields_parsed == 4)
-         strncpy(header_comment, line+ccount, MAX_TEXT_LINE_LENGTH);
+         header_comment = line+ccount;  // substring
       else
-         header_comment[0] = 0;
+         header_comment.clear();
 
       if (!install_outfile_string(filename_string)) {
          *error_msg = "Bad file name in session file, using default instead.";
@@ -1419,13 +1419,13 @@ static int write_back_session_line(FILE *wfile)
       strcat(level_and_abridge_name, abridge_filename);
    }
 
-   if (header_comment[0])
+   if (!header_comment.empty())
       return
          fprintf(wfile, "%-20s %-11s %6d      %s\n",
                  filename,
                  level_and_abridge_name,
                  sequence_number,
-                 header_comment);
+                 header_comment.c_str());  // TODO(legakis): remove c_str()
    else
       return
          fprintf(wfile, "%-20s %-11s %6d\n",
@@ -1438,8 +1438,7 @@ static int write_back_session_line(FILE *wfile)
 static void rewrite_init_file()
 {
    if (session_index != 0 || rewrite_with_new_style_filename) {
-      char line[MAX_FILENAME_LENGTH];
-      char errmsg[MAX_TEXT_LINE_LENGTH];
+      char line[INPUT_TEXTLINE_SIZE];
       FILE *rfile;
       FILE *wfile;
       int i;
@@ -1453,33 +1452,28 @@ static void rewrite_init_file()
       remove(SESSION2_FILENAME);
 
       if (rename(SESSION_FILENAME, SESSION2_FILENAME)) {
-         strncpy(errmsg, "Failed to save file '" SESSION_FILENAME
-                 "' in '" SESSION2_FILENAME "':\n",
-                 MAX_TEXT_LINE_LENGTH);
-         strncat(errmsg, get_errstring(), MAX_FILENAME_LENGTH-160);
-         strncat(errmsg, ", not saving backup.",
-                 MAX_TEXT_LINE_LENGTH);
-         gg77->iob88.serious_error_print(errmsg);
+         std::string errmsg = to_string("Failed to save file '" SESSION_FILENAME
+                                        "' in '" SESSION2_FILENAME "':\n",
+                                        get_errstring(),
+                                        ", not saving backup.");
+         gg77->iob88.serious_error_print(errmsg.c_str());
 
 #if defined(WIN32)
          char tmpname[_MAX_PATH+1];
          GetTempFileName(".", "", 0, tmpname);
 
          if (!CopyFile(SESSION_FILENAME, tmpname, false)) {
-            strncpy(errmsg, "Failed to copy to temp file.", MAX_TEXT_LINE_LENGTH);
-            gg77->iob88.serious_error_print(errmsg);
+            gg77->iob88.serious_error_print("Failed to copy to temp file.");
             return;
          }
 
          if (!(rfile = fopen(tmpname, "r"))) {
-            strncpy(errmsg, "Failed to read temp file.", MAX_TEXT_LINE_LENGTH);
-            gg77->iob88.serious_error_print(errmsg);
+            gg77->iob88.serious_error_print("Failed to read temp file.");
             return;
          }
 #else
          if (!(rfile = tmpfile())) {
-            strncpy(errmsg, "Failed to open temp file.", MAX_TEXT_LINE_LENGTH);
-            gg77->iob88.serious_error_print(errmsg);
+            gg77->iob88.serious_error_print("Failed to open temp file.");
             return;
          }
 
@@ -1487,8 +1481,7 @@ static void rewrite_init_file()
 
          // Open sd.ini, which we will later write the result to, for reading.
          if (!(tfile = fopen(SESSION_FILENAME, "r"))) {
-            strncpy(errmsg, "Failed to read file '" SESSION_FILENAME "'\n", MAX_TEXT_LINE_LENGTH);
-            gg77->iob88.serious_error_print(errmsg);
+            gg77->iob88.serious_error_print("Failed to read file '" SESSION_FILENAME "'\n");
             return;
          }
 
@@ -1502,16 +1495,12 @@ static void rewrite_init_file()
 #endif
       }
       else if (!(rfile = fopen(SESSION2_FILENAME, "r"))) {
-         strncpy(errmsg, "Failed to open '" SESSION2_FILENAME "'.",
-                 MAX_TEXT_LINE_LENGTH);
-         gg77->iob88.serious_error_print(errmsg);
+         gg77->iob88.serious_error_print("Failed to open '" SESSION2_FILENAME "'.");
          return;
       }
 
       if (!(wfile = fopen(SESSION_FILENAME, "w"))) {
-         strncpy(errmsg, "Failed to open '" SESSION_FILENAME "'.",
-                 MAX_TEXT_LINE_LENGTH);
-         gg77->iob88.serious_error_print(errmsg);
+         gg77->iob88.serious_error_print("Failed to open '" SESSION_FILENAME "'.");
          fclose(rfile);
          return;
       }
@@ -1603,9 +1592,7 @@ static void rewrite_init_file()
 
    copy_failed:
 
-      strncpy(errmsg, "Failed to write to '" SESSION_FILENAME "'.",
-              MAX_TEXT_LINE_LENGTH);
-      gg77->iob88.serious_error_print(errmsg);
+      gg77->iob88.serious_error_print("Failed to write to '" SESSION_FILENAME "'.");
 
    copy_done:
 
