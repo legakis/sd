@@ -63,6 +63,8 @@ and the following external variables:
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
+#include <iostream>
+#include <sstream>
 
 #include "sd.h"
 #include "sort.h"
@@ -1077,16 +1079,18 @@ static void read_in_call_definition(calldefn *root_to_use, int char_count)
 // Returns FALSE if error occurs.  No action taken in that case.
 // We do not allow blanks in the file name.  To do so would make
 // the parsing of session lines ambiguous.
-extern bool install_outfile_string(const char newstring[])
+extern bool install_outfile_string(std::string_view newstring)
 {
-   char test_string[MAX_FILENAME_LENGTH];
+   std::string test_string;
 
    rewrite_filename_as_star[0] = '\0';
 
    // Clean off leading blanks, and stop after any internal blank.
 
-   sscanf(newstring, "%s", test_string);
-   if (!test_string[0]) return false;   // Null file name is not allowed.
+   std::istringstream stream{std::string{newstring}};
+   stream >> test_string;
+
+   if (test_string.empty()) return false;   // Null file name is not allowed.
 
    // Look for special file string of "*" or "+".
    // If so, generate a new file name.
@@ -1134,7 +1138,7 @@ extern bool install_outfile_string(const char newstring[])
       return true;
    }
 
-   strncpy(outfile_string, test_string, MAX_FILENAME_LENGTH);
+   strncpy(outfile_string, test_string.c_str(), MAX_FILENAME_LENGTH);  // TODO(legakis): remove c_str()
    last_file_position = -1;
    return true;
 }

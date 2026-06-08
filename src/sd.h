@@ -694,15 +694,15 @@ enum error_flag_type {
 };
 
 
-void fail(const char s[]) THROW_DECL NORETURN2;
+void fail(std::string_view s) THROW_DECL NORETURN2;
 
-void fail_no_retry(const char s[]) THROW_DECL NORETURN2;
+void fail_no_retry(std::string_view s) THROW_DECL NORETURN2;
 
-extern void fail2(const char s1[], const char s2[]) THROW_DECL NORETURN2;
+extern void fail2(std::string_view s1, std::string_view s2) THROW_DECL NORETURN2;
 
-extern void failp(uint32_t id1, const char s[]) THROW_DECL NORETURN2;
+extern void failp(uint32_t id1, std::string_view s) THROW_DECL NORETURN2;
 
-void specialfail(const char s[]) THROW_DECL NORETURN2;
+void specialfail(std::string_view) THROW_DECL NORETURN2;
 
 extern void warn(warning_index w);
 
@@ -2708,8 +2708,8 @@ public:
 private:
 
    error_flag_type save_error_flag;
-   char save_error_message1[MAX_ERR_LENGTH];
-   char save_error_message2[MAX_ERR_LENGTH];
+   std::string save_error_message1;
+   std::string save_error_message2;
    uint32_t save_collision_person1;
    uint32_t save_collision_person2;
 };
@@ -4902,8 +4902,8 @@ enum split_command_kind {
 /* VARIABLES */
 
 
-extern SDLIB_API char error_message1[MAX_ERR_LENGTH];               /* in SDTOP */
-extern SDLIB_API char error_message2[MAX_ERR_LENGTH];               /* in SDTOP */
+extern SDLIB_API std::string error_message1;                        /* in SDTOP */
+extern SDLIB_API std::string error_message2;                        /* in SDTOP */
 extern SDLIB_API bool enforce_overcast_warning;                     /* in SDTOP */
 extern SDLIB_API uint32_t collision_person1;                        /* in SDTOP */
 extern SDLIB_API uint32_t collision_person2;                        /* in SDTOP */
@@ -6590,7 +6590,7 @@ SDLIB_API bool iterate_over_sel_dir_num(
    bool enable_direction_iteration,
    bool enable_number_iteration);
 SDLIB_API void start_sel_dir_num_iterator();
-SDLIB_API bool install_outfile_string(const char newstring[]);
+SDLIB_API bool install_outfile_string(std::string_view);
 SDLIB_API bool get_first_session_line();
 SDLIB_API bool get_next_session_line(char *dest);
 SDLIB_API void prepare_to_read_menus();

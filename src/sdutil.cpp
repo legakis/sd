@@ -3164,7 +3164,7 @@ void ui_utils::run_program(iobase & ggg)
 
          if (interactivity == interactivity_database_init ||
              interactivity == interactivity_verify)
-            ggg.fatal_error_exit(1, "Unknown error context", error_message1);
+            ggg.fatal_error_exit(1, "Unknown error context", error_message1.c_str());  // TODO(legakis): remove c_str()
 
          // If this is a real call execution error, save the call that caused it.
 
