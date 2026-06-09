@@ -271,11 +271,11 @@ static bool really_open_session()
    // in the command line, we don't query about the session.
 
    if (ui_options.force_session == -1000000) {
-      char line[MAX_FILENAME_LENGTH];
+      std::string line;
 
       put_line("Do you want to use one of the following sessions?\n\n");
 
-      while (get_next_session_line(line)) {
+      while (get_next_session_line(&line)) {
          put_line(line);
          put_line("\n");
       }
@@ -283,17 +283,17 @@ static bool really_open_session()
       put_line("Enter the number of the desired session\n");
       put_line("   (or a negative number to delete that session):  ");
 
-      get_string(line, MAX_FILENAME_LENGTH);
-      if (!line[0] || line[0] == '\r' || line[0] == '\n')
+      get_string<MAX_FILENAME_LENGTH>(&line);
+      if (line.empty() || line[0] == '\r' || line[0] == '\n')
          goto no_session;
 
-      if (!sscanf(line, "%d", &session_index)) {
+      if (!sscanf(line.c_str(), "%d", &session_index)) {
          session_index = 0;         // User typed garbage -- exit the program immediately.
          return true;
       }
    }
    else {
-      while (get_next_session_line((char *) 0));   // Need to scan the file anyway.
+      while (get_next_session_line(nullptr));   // Need to scan the file anyway.
       session_index = ui_options.force_session;
    }
 
@@ -375,7 +375,7 @@ bool iofull::init_step(init_callback_state s, int n)
 
       parse_level(line);
 
-      strncat(outfile_string, filename_strings[calling_level], MAX_FILENAME_LENGTH-80);
+      outfile_string = filename_strings[calling_level];
       break;
 
    case init_database1:

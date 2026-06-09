@@ -79,6 +79,8 @@ and the following external variables:
 
 #include <stdlib.h>
 #include <string.h>
+#include <string>
+#include <iomanip>
 
 #include "sd.h"
 #include "sort.h"
@@ -101,8 +103,8 @@ configuration *clipboard = (configuration *) 0;
 int clipboard_size = 0;
 bool wrote_a_sequence = false;
 bool retain_after_error = false;
-char outfile_string[MAX_FILENAME_LENGTH] = SEQUENCE_FILENAME;
-char outfile_prefix[MAX_FILENAME_LENGTH] = "";
+std::string outfile_string = SEQUENCE_FILENAME;
+std::string outfile_prefix = "";
 std::string header_comment;
 bool creating_new_session = false;
 int sequence_number = -1;
@@ -1046,9 +1048,7 @@ void ui_utils::write_history_line(int history_index,
    if (!enable_file_writing && !ui_options.diagnostic_mode) {
       i = history_index-configuration::whole_sequence_low_lim+1;
       if (i > 0) {
-         char indexbuf[10];
-         sprintf(indexbuf, "%2d:   ", i);
-         writestuff(indexbuf);
+         writestuff(to_string(std::setw(2), i, ":   "));
       }
    }
 
@@ -2654,8 +2654,7 @@ void ui_utils::do_change_outfile(bool signal)
 void ui_utils::do_change_outprefix(bool signal)
 {
    std::string newprefix_string;
-   char buffer[MAX_TEXT_LINE_LENGTH];
-   sprintf(buffer, "Current sequence output prefix is \"%s\".", outfile_prefix);
+   std::string buffer = to_string("Current sequence output prefix is \"", outfile_prefix, "\".");
 
    if (iob88.get_popup_string(buffer,
                               "*Enter new prefix",
@@ -2663,12 +2662,8 @@ void ui_utils::do_change_outprefix(bool signal)
                               outfile_prefix, &newprefix_string) == POPUP_DECLINE)
       return;
 
-   char confirm_message[MAX_FILENAME_LENGTH+25];
-
-   strncpy(outfile_prefix, newprefix_string.c_str(), MAX_FILENAME_LENGTH);  // TODO(legakis): remove c_str()
-   strncpy(confirm_message, "Output prefix changed to \"", 27);
-   strncat(confirm_message, outfile_prefix, MAX_FILENAME_LENGTH);
-   strncat(confirm_message, "\"", 2);
+   outfile_prefix = newprefix_string;
+   std::string confirm_message = to_string("Output prefix changed to \"", outfile_prefix, "\"");
 
    if (signal) {
       specialfail(confirm_message);
@@ -2729,7 +2724,7 @@ bool ui_utils::write_sequence_to_file() THROW_DECL
 {
    char date[MAX_TEXT_LINE_LENGTH];
    std::string second_header;
-   char seqstring[20];
+   std::string seqstring;
    int j;
 
    // Put up the getout popup to see if the user wants to enter a header string.
@@ -2737,8 +2732,7 @@ bool ui_utils::write_sequence_to_file() THROW_DECL
    popup_return getout_ind;
 
    if (!header_comment.empty()) {
-      char buffer[MAX_TEXT_LINE_LENGTH+MAX_FILENAME_LENGTH];
-      sprintf(buffer, "Session title is \"%s\".", header_comment.c_str());  // TODO(legakis): remove c_str()
+      std::string buffer = to_string("Session title is \"", header_comment, "\".");
       getout_ind = iob88.get_popup_string(buffer,
                                           "You can give an additional comment for just this sequence.",
                                           "Enter comment:", "", &second_header);
@@ -2791,7 +2785,7 @@ bool ui_utils::write_sequence_to_file() THROW_DECL
    }
 
    if (sequence_number >= 0) {
-      (void) sprintf(seqstring, "%d", sequence_number);
+      seqstring = to_string(sequence_number);
       writestuff("   ");
       writestuff(seqstring);
    }

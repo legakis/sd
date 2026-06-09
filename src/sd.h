@@ -6534,7 +6534,7 @@ extern SDLIB_API int random_number;                           // in SDSI
 extern SDLIB_API int resolve_test_count;                      // in SDSI
 extern SDLIB_API const char *database_filename;               // in SDSI
 extern SDLIB_API const char *new_outfile_string;              // in SDSI
-extern SDLIB_API char abridge_filename[MAX_TEXT_LINE_LENGTH]; // in SDSI
+extern SDLIB_API std::string abridge_filename;                // in SDSI
 
 extern SDLIB_API bool wrote_a_sequence;                             /* in SDUTIL */
 extern SDLIB_API int sequence_number;                               /* in SDUTIL */
@@ -6542,8 +6542,8 @@ extern SDLIB_API int starting_sequence_number;                      /* in SDUTIL
 extern SDLIB_API const Cstring old_filename_strings[];              /* in SDUTIL */
 extern SDLIB_API const Cstring new_filename_strings[];              /* in SDUTIL */
 extern SDLIB_API const Cstring *filename_strings;                   /* in SDUTIL */
-extern SDLIB_API char outfile_string[MAX_FILENAME_LENGTH];          /* in SDUTIL */
-extern SDLIB_API char outfile_prefix[MAX_FILENAME_LENGTH];          /* in SDUTIL */
+extern SDLIB_API std::string outfile_string;                        /* in SDUTIL */
+extern SDLIB_API std::string outfile_prefix;                        /* in SDUTIL */
 extern SDLIB_API std::string header_comment;                        /* in SDUTIL */
 extern SDLIB_API bool creating_new_session;                         /* in SDUTIL */
 
@@ -6594,7 +6594,7 @@ SDLIB_API bool iterate_over_sel_dir_num(
 SDLIB_API void start_sel_dir_num_iterator();
 SDLIB_API bool install_outfile_string(std::string_view);
 SDLIB_API bool get_first_session_line();
-SDLIB_API bool get_next_session_line(char *dest);
+SDLIB_API bool get_next_session_line(std::string *dest);
 SDLIB_API void prepare_to_read_menus();
 SDLIB_API int process_session_info(Cstring *error_msg);
 SDLIB_API void close_init_file();

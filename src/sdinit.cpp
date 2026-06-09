@@ -63,6 +63,7 @@ and the following external variables:
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 
@@ -1081,13 +1082,11 @@ static void read_in_call_definition(calldefn *root_to_use, int char_count)
 // the parsing of session lines ambiguous.
 extern bool install_outfile_string(std::string_view newstring)
 {
-   std::string test_string;
-
    rewrite_filename_as_star[0] = '\0';
 
    // Clean off leading blanks, and stop after any internal blank.
-
    std::istringstream stream{std::string{newstring}};
+   std::string test_string;
    stream >> test_string;
 
    if (test_string.empty()) return false;   // Null file name is not allowed.
@@ -1099,46 +1098,41 @@ extern bool install_outfile_string(std::string_view newstring)
    if ((test_string[0] == '*' || test_string[0] == '+') && !test_string[1]) {
       time_t clocktime;
       FILE *filetest;
-      char junk[30], junk2[30], t1[20], t2[20], t3[20], t4[20], t5[20];
-      char letter[2];
-      char *p;
+      char t1[20], t2[20], t3[20], t4[20], t5[20];
+      char letter = 'a';
 
-      letter[0] = 'a';
-      letter[1] = '\0';
       time(&clocktime);
       sscanf(ctime(&clocktime), "%s %s %s %s %s", t1, t2, t3, t4, t5);
 
       // Now t2 = "Jan", t3 = "16", and t5 = "1996".
 
-      strncpy(junk, t3, 3);
-      strncat(junk, t2, 3);
-      strncat(junk, &t5[strlen(t5)-2], 2);
-      for (p=junk ; *p ; p++) *p = tolower(*p);  // Month in lower case.
-      strncpy(junk2, junk, 10);           // This should be "16jan96".
+      std::string junk = to_string(t3, t2, &t5[strlen(t5)-2]);
+      for (char &ch : junk) ch = tolower(ch);  // Month in lower case.
+      std::string junk2 = junk;  // This should be "16jan96".
 
       for (;;) {
-         strcat(junk2, filename_strings[calling_level]);
+         junk2 += filename_strings[calling_level];
 
          // If the given filename is "+", accept it immediately.
          // Otherwise, fuss with the generated name until we get a
          // nonexistent file.
 
-         if (test_string[0] == '+' || (filetest = fopen(junk2, "r")) == 0) break;
+         if (test_string[0] == '+' || (filetest = fopen(junk2.c_str(), "r")) == 0) break;
          fclose(filetest);
-         if (letter[0] == 'z'+1) letter[0] = 'A';
-         else if (letter[0] == 'Z'+1) return false;
-         strncpy(junk2, junk, 10);
-         strncat(junk2, letter, 4);     /* Try appending a letter. */
-         letter[0]++;
+         if (letter == 'z'+1) letter = 'A';
+         else if (letter == 'Z'+1) return false;
+         junk2 = junk;
+         junk2 += letter;     /* Try appending a letter. */
+         letter++;
       }
 
-      strncpy(outfile_string, junk2, MAX_FILENAME_LENGTH);
+      outfile_string = junk2;
       last_file_position = -1;
       rewrite_filename_as_star[0] = test_string[0];
       return true;
    }
 
-   strncpy(outfile_string, test_string.c_str(), MAX_FILENAME_LENGTH);  // TODO(legakis): remove c_str()
+   outfile_string = test_string;
    last_file_position = -1;
    return true;
 }
@@ -1146,7 +1140,7 @@ extern bool install_outfile_string(std::string_view newstring)
 
 static bool find_init_file_region(Cstring key, int length)
 {
-   char line[MAX_FILENAME_LENGTH];
+   char line[INPUT_TEXTLINE_SIZE];
 
    if (!init_file) return false;
 
@@ -1160,7 +1154,7 @@ static bool find_init_file_region(Cstring key, int length)
    // from the file.
 
    for (;;) {
-      if (!fgets(line, MAX_FILENAME_LENGTH, init_file)) return false;
+      if (!fgets(line, INPUT_TEXTLINE_SIZE, init_file)) return false;
       if (!strncmp(line, key, length)) return true;
    }
 }
@@ -1186,14 +1180,14 @@ extern bool get_first_session_line()
 }
 
 
-extern bool get_next_session_line(char *dest)
+extern bool get_next_session_line(std::string *dest)
 {
    int j;
    char line[MAX_FILENAME_LENGTH];
 
    if (session_line_state == 0) {
       session_line_state = 1;
-      if (dest) sprintf(dest, "  0     (no session)");
+      if (dest) *dest = "  0     (no session)";
       return true;
    }
    else if (session_line_state == 2)
@@ -1201,14 +1195,14 @@ extern bool get_next_session_line(char *dest)
 
    if (!fgets(line, MAX_FILENAME_LENGTH, init_file) || line[0] == '\n' || line[0] == '[') {
       session_line_state = 2;
-      if (dest) sprintf(dest, "%3d     (create a new session)", session_linenum+1);
+      if (dest) *dest = to_string(std::setw(3), session_linenum+1, "     (create a new session)");
       return true;
    }
 
    j = strlen(line);
    if (j>0) line[j-1] = '\0';   // Strip off the <NEWLINE> -- we don't want it.
    session_linenum++;
-   if (dest) sprintf(dest, "%3d  %s", session_linenum, line);
+   if (dest) *dest = to_string(std::setw(3), session_linenum, "  ", line);
    return true;
 }
 
@@ -1299,11 +1293,8 @@ extern int process_session_info(Cstring *error_msg)
 
    if (session_index <= session_linenum) {
       char line[MAX_FILENAME_LENGTH];
-      int ccount;
-      int num_fields_parsed;
-      char junk_name[MAX_FILENAME_LENGTH];
-      char filename_string[MAX_FILENAME_LENGTH];
-      char session_levelstring[MAX_FILENAME_LENGTH+10];
+      std::string filename_string;
+      std::string session_levelstring;
 
       // Find the "[Sessions]" indicator again.
 
@@ -1324,19 +1315,22 @@ extern int process_session_info(Cstring *error_msg)
       j = strlen(line);
       if (j>0) line[j-1] = '\0';   // Strip off the <NEWLINE> -- we don't want it.
 
-      num_fields_parsed = sscanf(line, "%s %s %d %n%s",
-                                 filename_string, session_levelstring,
-                                 &sequence_number, &ccount,
-                                 junk_name);
-
-      if (num_fields_parsed < 3) {
+      std::istringstream line_ss(line);
+      if (line_ss >> filename_string >> session_levelstring >> sequence_number) {
+        // Read remainder of line (spaces and all) into header_comment.  Sets it
+        // to empty string if there is nothing left on line.
+        std::getline(line_ss, header_comment);
+        while (!header_comment.empty() && header_comment[0] == ' ')
+          header_comment = header_comment.substr(1);
+      }
+      else {
          *error_msg = "Bad format in session file.";
          return 3;
       }
 
       Cstring breakpos = 0;
 
-      if (!parse_level(session_levelstring, &breakpos)) {
+      if (!parse_level(session_levelstring.c_str(), &breakpos)) {
          *error_msg = "Bad level given in session file.";
          return 3;
       }
@@ -1344,15 +1338,11 @@ extern int process_session_info(Cstring *error_msg)
       // Look for an abridge list or stats list, immediately after the level,
       // separated by a minus sign and/or colon.
       if (breakpos && *breakpos == '-') {
-         int len = strlen(breakpos+1);
-
          // If there is already a file name, the operator is overriding
          // the name from the session.  Use the override.  Don't take
          // the name from the session.
-         if (abridge_filename[0] == 0) {
-            if (len > MAX_TEXT_LINE_LENGTH-1) len = MAX_TEXT_LINE_LENGTH-1;
-            strncpy(abridge_filename, breakpos+1, len);
-            abridge_filename[len] = 0;
+         if (abridge_filename.empty()) {
+            abridge_filename = breakpos+1;
          }
 
          if (abridge_filename[0] != 0) {
@@ -1367,11 +1357,6 @@ extern int process_session_info(Cstring *error_msg)
                abridge_mode_none : abridge_mode_abridging;
          }
       }
-
-      if (num_fields_parsed == 4)
-         header_comment = line+ccount;  // substring
-      else
-         header_comment.clear();
 
       if (!install_outfile_string(filename_string)) {
          *error_msg = "Bad file name in session file, using default instead.";
@@ -1391,7 +1376,7 @@ extern int process_session_info(Cstring *error_msg)
 static bool get_accelerator_line(char line[])
 {
    for ( ;; ) {
-      if (!fgets(line, MAX_FILENAME_LENGTH, init_file) || line[0] == '\n' || line[0] == '\r' || line[0] == '[') return false;
+      if (!fgets(line, INPUT_TEXTLINE_SIZE, init_file) || line[0] == '\n' || line[0] == '\r' || line[0] == '[') return false;
 
       int j = strlen(line);
       if (j>0) line[j-1] = '\0';   // Strip off the <NEWLINE> -- we don't want it.
@@ -1409,28 +1394,27 @@ extern void close_init_file()
 
 static int write_back_session_line(FILE *wfile)
 {
-   char *filename = rewrite_filename_as_star[0] ? rewrite_filename_as_star : outfile_string;
-   char level_and_abridge_name[MAX_TEXT_LINE_LENGTH];
-   strncpy(level_and_abridge_name, getout_strings[calling_level], MAX_TEXT_LINE_LENGTH);
+   const char *filename = rewrite_filename_as_star[0] ? rewrite_filename_as_star : outfile_string.c_str();
+   std::string level_and_abridge_name = getout_strings[calling_level];
 
    // Write the abridge file name, unless the abridgement is being deleted.
    if (glob_abridge_mode != abridge_mode_none && abridge_filename[0]) {
-      strcat(level_and_abridge_name, "-");
-      strcat(level_and_abridge_name, abridge_filename);
+      level_and_abridge_name += "-";
+      level_and_abridge_name += abridge_filename;
    }
 
    if (!header_comment.empty())
       return
          fprintf(wfile, "%-20s %-11s %6d      %s\n",
                  filename,
-                 level_and_abridge_name,
+                 level_and_abridge_name.c_str(),
                  sequence_number,
-                 header_comment.c_str());  // TODO(legakis): remove c_str()
+                 header_comment.c_str());
    else
       return
          fprintf(wfile, "%-20s %-11s %6d\n",
                  filename,
-                 level_and_abridge_name,
+                 level_and_abridge_name.c_str(),
                  sequence_number);
 }
 
@@ -1511,7 +1495,7 @@ static void rewrite_init_file()
          // Search for the "[Options]" indicator, copying stuff that we skip.
 
          for (;;) {
-            if (!fgets(line, MAX_FILENAME_LENGTH, rfile)) goto copy_done;
+            if (!fgets(line, INPUT_TEXTLINE_SIZE, rfile)) goto copy_done;
             if (fputs(line, wfile) == EOF) goto copy_failed;
             if (!strncmp(line, "[Options]", 9)) break;
             else if (!strncmp(line, "[Sessions]", 10)) goto got_sessions;
@@ -1520,7 +1504,7 @@ static void rewrite_init_file()
          bool got_the_command = false;
 
          for (;;) {
-            if (!fgets(line, MAX_FILENAME_LENGTH, rfile)) goto copy_done;
+            if (!fgets(line, INPUT_TEXTLINE_SIZE, rfile)) goto copy_done;
 
             if (!strncmp(line, "new_style_filename", 18))
                got_the_command = true;
@@ -1551,7 +1535,7 @@ static void rewrite_init_file()
    search_for_sessions:
 
       for (;;) {
-         if (!fgets(line, MAX_FILENAME_LENGTH, rfile)) goto copy_done;
+         if (!fgets(line, INPUT_TEXTLINE_SIZE, rfile)) goto copy_done;
          if (fputs(line, wfile) == EOF) goto copy_failed;
          if (!strncmp(line, "[Sessions]", 10)) goto got_sessions;
       }
@@ -1559,7 +1543,7 @@ static void rewrite_init_file()
    got_sessions:
 
       for (i=0 ; ; i++) {
-         if (!fgets(line, MAX_FILENAME_LENGTH, rfile)) break;
+         if (!fgets(line, INPUT_TEXTLINE_SIZE, rfile)) break;
          if (line[0] == '\n') { more_stuff = true; break; }
 
          if (i == session_index-1) {
@@ -1583,7 +1567,7 @@ static void rewrite_init_file()
       if (more_stuff) {
          if (fputs("\n", wfile) == EOF) goto copy_failed;
          for (;;) {
-            if (!fgets(line, MAX_FILENAME_LENGTH, rfile)) break;
+            if (!fgets(line, INPUT_TEXTLINE_SIZE, rfile)) break;
             if (fputs(line, wfile) == EOF) goto copy_failed;
          }
       }
@@ -2078,7 +2062,7 @@ bool open_session(int argc, char **argv)
    int i, j;
    uint32_t uj;
    int argno;
-   char line[MAX_FILENAME_LENGTH+1];
+   char line[INPUT_TEXTLINE_SIZE+1];
 
    // Copy the arguments, so that we can grow the list if we see options in the init file.
 
@@ -2099,14 +2083,14 @@ bool open_session(int argc, char **argv)
          char *lineptr = line;
 
          // Blank line or line starting with left bracket ends the section.
-         if (!fgets(&line[1], MAX_FILENAME_LENGTH, init_file) || line[1] == '\n' || line[1] == '\r' || line[1] == '[') break;
+         if (!fgets(&line[1], INPUT_TEXTLINE_SIZE, init_file) || line[1] == '\n' || line[1] == '\r' || line[1] == '[') break;
 
          j = strlen(&line[1]);
          if (j>0) line[j] = '\0';   /* Strip off the <NEWLINE> -- we don't want it. */
          line[0] = '-';             /* Put a '-' in front of it. */
 
          for (;;) {
-            char token[MAX_FILENAME_LENGTH];
+            char token[INPUT_TEXTLINE_SIZE];
             int newpos;
 
             // Break the line into tokens, and insert each as a command-line argument.
@@ -2153,17 +2137,17 @@ bool open_session(int argc, char **argv)
          if (strcmp(&args[argno][1], "write_list") == 0) {
             glob_abridge_mode = abridge_mode_writing_only;
             if (argno+1 < nargs)
-               strncpy(abridge_filename, args[argno+1], MAX_TEXT_LINE_LENGTH);
+               abridge_filename = args[argno+1];
          }
          else if (strcmp(&args[argno][1], "write_full_list") == 0) {
             glob_abridge_mode = abridge_mode_writing_full;
             if (argno+1 < nargs)
-               strncpy(abridge_filename, args[argno+1], MAX_TEXT_LINE_LENGTH);
+               abridge_filename = args[argno+1];
          }
          else if (strcmp(&args[argno][1], "abridge") == 0) {
             glob_abridge_mode = abridge_mode_abridging;
             if (argno+1 < nargs)
-               strncpy(abridge_filename, args[argno+1], MAX_TEXT_LINE_LENGTH);
+               abridge_filename = args[argno+1];
          }
          else if (strcmp(&args[argno][1], "sequence") == 0) {
 	     if (argno+1 < nargs) new_outfile_string = args[argno+1];
@@ -2172,44 +2156,44 @@ bool open_session(int argc, char **argv)
             if (argno+1 < nargs) database_filename = args[argno+1];
          }
          else if (strcmp(&args[argno][1], "output_prefix") == 0) {
-            if (argno+1 < nargs) strncpy(outfile_prefix, args[argno+1], MAX_FILENAME_LENGTH);
+            if (argno+1 < nargs) outfile_prefix = args[argno+1];
          }
          else if (strcmp(&args[argno][1], "sequence_num") == 0) {
             if (argno+1 < nargs) {
                if (sscanf(args[argno+1], "%d", &ui_options.sequence_num_override) != 1)
-                  gg77->iob88.bad_argument("Bad number", args[argno+1], 0);
+                  gg77->iob88.bad_argument("Bad number", args[argno+1], "");
             }
          }
          else if (strcmp(&args[argno][1], "session") == 0) {
             if (argno+1 < nargs) {
                if (sscanf(args[argno+1], "%d", &ui_options.force_session) != 1)
-                  gg77->iob88.bad_argument("Bad number", args[argno+1], 0);
+                  gg77->iob88.bad_argument("Bad number", args[argno+1], "");
             }
          }
          else if (strcmp(&args[argno][1], "resolve_test") == 0) {
             if (argno+1 < nargs) {
                // If this option isn't last, it could consume whatever is next.
                if (sscanf(args[argno+1], "%d", &ui_options.resolve_test_minutes) != 1)
-                  gg77->iob88.bad_argument("Bad number", args[argno+1], 0);
+                  gg77->iob88.bad_argument("Bad number", args[argno+1], "");
                ui_options.resolve_test_random_seed = ui_options.resolve_test_minutes;
 
                if (argno+2 < nargs) {
                   argno++;
                   if (sscanf(args[argno+1], "%d", &ui_options.resolve_test_random_seed) != 1)
-                     gg77->iob88.bad_argument("Bad number", args[argno+1], 0);
+                     gg77->iob88.bad_argument("Bad number", args[argno+1], "");
                }
 
                if (argno+2 < nargs) {
                   argno++;
                   if (sscanf(args[argno+1], "%d", &ui_options.resolve_test_attempts_per_print) != 1)
-                     gg77->iob88.bad_argument("Bad number", args[argno+1], 0);
+                     gg77->iob88.bad_argument("Bad number", args[argno+1], "");
                }
             }
          }
          else if (strcmp(&args[argno][1], "print_length") == 0) {
             if (argno+1 < nargs) {
                if (sscanf(args[argno+1], "%d", &ui_options.max_print_length) != 1)
-                  gg77->iob88.bad_argument("Bad number", args[argno+1], 0);
+                  gg77->iob88.bad_argument("Bad number", args[argno+1], "");
             }
          }
          else if (strcmp(&args[argno][1], "delete_abridge") == 0)
@@ -2279,12 +2263,12 @@ bool open_session(int argc, char **argv)
          else if (strcmp(&args[argno][1], "old_style_filename") == 0)
             { filename_strings = old_filename_strings; continue; }
          else
-            gg77->iob88.bad_argument("Unknown flag", args[argno], 0);
+            gg77->iob88.bad_argument("Unknown flag", args[argno], "");
 
          argno++;
          if (argno >= nargs)
             gg77->iob88.bad_argument("This flag must be followed by a number or file name",
-                             args[argno-1], 0);
+                             args[argno-1], "");
       }
       else if (!parse_level(args[argno])) {
          gg77->iob88.bad_argument("Unknown calling level argument", args[argno],
@@ -2303,7 +2287,7 @@ bool open_session(int argc, char **argv)
       the user.  In the latter case, we will do this step again. */
 
    if (calling_level != l_nonexistent_concept)
-      strncat(outfile_string, filename_strings[calling_level], MAX_FILENAME_LENGTH-80);
+      outfile_string += filename_strings[calling_level];
 
    /* At this point, the command-line arguments, and the preferences in the "[Options]"
       section of the initialization file, have been processed.  Some of those things
@@ -2421,21 +2405,20 @@ bool open_session(int argc, char **argv)
    // Must do before telling the uims so any open failure messages
    // come out first.
 
-   const char *sourcenames[2] = {database_filename, abridge_filename};
+   std::string_view sourcenames[2] = {database_filename, abridge_filename};
    bool binaryfileflags[2] = {true, false};
    FILE *database_input_files[2];
 
    if (glob_abridge_mode >= abridge_mode_writing_only) {  // Includes abridge_mode_writing_full.
-      database_input_files[1] = fopen(abridge_filename, "w");
+      database_input_files[1] = fopen(abridge_filename.c_str(), "w");
 
       if (!database_input_files[1])
-         gg77->iob88.fatal_error_exit(1, "Can't open abridgement file", abridge_filename);
+         gg77->iob88.fatal_error_exit(1, "Can't open abridgement file", abridge_filename.c_str());
    }
 
    {
-      char cachename[MAX_TEXT_LINE_LENGTH];
-      strncpy(cachename, getout_strings[calling_level], MAX_TEXT_LINE_LENGTH);
-      strcat(cachename, "cache");
+      std::string cachename = getout_strings[calling_level];
+      cachename += "cache";
       uint32_t escape_bit_junk;
 
       MAPPED_CACHE_FILE cache_stuff((glob_abridge_mode == abridge_mode_abridging) ? 2 : 1,
@@ -2451,7 +2434,7 @@ bool open_session(int argc, char **argv)
          gg77->iob88.fatal_error_exit(1, "Can't open database file.");
 
       if (glob_abridge_mode == abridge_mode_abridging && !abridge_file)
-         gg77->iob88.fatal_error_exit(1, "Can't open abridgement file", abridge_filename);
+         gg77->iob88.fatal_error_exit(1, "Can't open abridgement file", abridge_filename.c_str());
 
       char session_error_msg1[200], session_error_msg2[200];
       session_error_msg1[0] = 0;
@@ -2928,7 +2911,7 @@ bool open_session(int argc, char **argv)
       // Process the keybindings for user-definable calls, concepts, and commands.
 
       if (find_init_file_region("[Accelerators]", 14)) {
-         char q[MAX_FILENAME_LENGTH];
+         char q[INPUT_TEXTLINE_SIZE];
          while (get_accelerator_line(q))
             gg77->matcher_p->do_accelerator_spec(q, true);
       }
@@ -2941,7 +2924,7 @@ bool open_session(int argc, char **argv)
       // Now do the abbreviations.
 
       if (find_init_file_region("[Abbreviations]", 15)) {
-         char q[MAX_FILENAME_LENGTH];
+         char q[INPUT_TEXTLINE_SIZE];
          while (get_accelerator_line(q))
             gg77->matcher_p->do_accelerator_spec(q, false);
       }
