@@ -2633,7 +2633,7 @@ void ui_utils::do_change_outfile(bool signal)
                               outfile_string, &newfile_string) == POPUP_ACCEPT_WITH_STRING && !newfile_string.empty()) {
      std::string final_message;
 
-      if (install_outfile_string(newfile_string.c_str())) {
+      if (install_outfile_string(newfile_string)) {
          final_message = to_string("Output file changed to \"", outfile_string, "\"");
       }
       else {
@@ -2641,7 +2641,7 @@ void ui_utils::do_change_outfile(bool signal)
       }
 
       if (signal) {
-         specialfail(final_message.c_str());
+         specialfail(final_message);
       }
       else {
          writestuff(final_message);
