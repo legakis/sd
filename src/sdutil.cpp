@@ -3227,22 +3227,18 @@ void ui_utils::run_program(iobase & ggg)
       // Update the console window title.
 
       {
-         char numstuff[50];
-         char title[MAX_TEXT_LINE_LENGTH];
+         std::string numstuff;
+         std::string title;
 
          if (sequence_number >= 0)
-            sprintf(numstuff, " (%d:%d)", starting_sequence_number, sequence_number);
-         else
-            numstuff[0] = '\0';
+            numstuff = to_string(" (", starting_sequence_number, ":", sequence_number, ")");
 
          if (!header_comment.empty())
-            sprintf(title, "%s  %s%s",
-                    &old_filename_strings[calling_level][1], header_comment.c_str(), numstuff);  // TODO(legakis): remove c_str()
+            title = to_string(&old_filename_strings[calling_level][1], "  ", header_comment, numstuff);
          else
-            sprintf(title, "%s%s",
-                    &old_filename_strings[calling_level][1], numstuff);
+            title = to_string(&old_filename_strings[calling_level][1], numstuff);
 
-         ggg.set_window_title(title);
+         ggg.set_window_title(title.c_str());
       }
 
       // Query for the starting setup.
