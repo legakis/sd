@@ -103,7 +103,7 @@ and the following other variables:
 // "1.4:db1.5:ui0.6tty"
 // We return the "0.6tty" part.
 
-static char journal_name[MAX_TEXT_LINE_LENGTH];
+std::string journal_name;
 static FILE *journal_file = (FILE *) 0;
 int sdtty_screen_height = 0;  // The "lines" option may set this to something.
                               // Otherwise, any subsystem that sees the value zero
@@ -195,7 +195,6 @@ void iofull::process_command_line(int *argcp, char ***argvp)
 {
    int argno = 1;
    char **argv = *argvp;
-   journal_name[0] = '\0';
 
    while (argno < (*argcp)) {
       int i;
@@ -215,7 +214,7 @@ void iofull::process_command_line(int *argcp, char ***argvp)
          goto remove_two;
       }
       else if (strcmp(argv[argno], "-journal") == 0 && argno+1 < (*argcp)) {
-         strcpy(journal_name, argv[argno+1]);
+         journal_name = argv[argno+1];
          journal_file = fopen(argv[argno+1], "w");
 
          if (!journal_file) {
@@ -454,7 +453,7 @@ void iofull::set_window_title(Cstring s)
 {
    std::string full_text;
 
-   if (journal_name[0]) {
+   if (!journal_name.empty()) {
       full_text = to_string("Sdtty ", s, " {", journal_name, "}");
    }
    else {
