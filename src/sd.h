@@ -1705,6 +1705,9 @@ public:
 
    void initialize(const concept_descriptor *cc);     // In sdutil.cpp
 
+   // Free heap-allocated memory, before this object is reused and at final destruction.
+   void cleanup();
+
    // In case someone runs a some kind of global memory leak detector, this releases all blocks.
    static void final_cleanup();
 

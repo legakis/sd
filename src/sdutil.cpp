@@ -2381,11 +2381,23 @@ void release_parse_blocks_to_mark(parse_block *mark_point)
       item->gc_ptr = parse_block::parse_inactive_list;
       parse_block::parse_inactive_list = item;
 
+      // Frees any heap-allocated memory.
+      item->cleanup();
+
       // Clear pointers so we will notice if it gets erroneously re-used.
       item->initialize((concept_descriptor *) 0);
    }
 }
 
+
+void parse_block::cleanup()
+{
+   if (concept_ptr == &concept_marker_concept_comment && call != (call_with_name *) 0) {
+      delete (comment_block *) call;
+      call = (call_with_name *) 0;
+      call_to_print = (call_with_name *) 0;
+   }
+}
 
 void parse_block::final_cleanup()
 {
@@ -2393,11 +2405,13 @@ void parse_block::final_cleanup()
 
    while ((item = parse_active_list)) {
       parse_active_list = item->gc_ptr;
+      item->cleanup();
       delete item;
    }
 
    while ((item = parse_inactive_list)) {
       parse_inactive_list = item->gc_ptr;
+      item->cleanup();
       delete item;
    }
 }
