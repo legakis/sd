@@ -3678,9 +3678,8 @@ void ui_utils::run_program(iobase & ggg)
 
          case command_help:
             {
-               char help_string[MAX_ERR_LENGTH];
+               std::string help_string;
                const char *prefix;
-               int current_length;
 
                switch (parse_state.call_list_to_use) {
                case call_list_lin:
@@ -3724,23 +3723,16 @@ void ui_utils::run_program(iobase & ggg)
                   break;
                }
 
-               (void) strncpy(help_string, prefix, MAX_ERR_LENGTH);
-               help_string[MAX_ERR_LENGTH-1] = '\0';
-               current_length = strlen(help_string);
+               help_string = prefix;
 
                if (configuration::sequence_is_resolved()) {
-                  (void) strncpy(&help_string[current_length],
-                                 "  You may also write out this finished sequence "
-                                 "by typing 'write this sequence'.",
-                                 MAX_ERR_LENGTH-current_length);
+                  help_string += "  You may also write out this finished sequence "
+                                 "by typing 'write this sequence'.";
                }
                else {
-                  (void) strncpy(&help_string[current_length],
-                                 "  You may also type 'resolve'.",
-                                 MAX_ERR_LENGTH-current_length);
+                  help_string += "  You may also type 'resolve'.";
                }
 
-               help_string[MAX_ERR_LENGTH-1] = '\0';
                specialfail(help_string);
             }
          case command_change_outfile:
