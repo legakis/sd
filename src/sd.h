@@ -6647,14 +6647,8 @@ extern void erase_last_n(int n);
 
 // Write a line.  The text may or may not have a newline at the end.
 // This may or may not be after a prompt and/or echoed user input.
-// This is in sdui-wincon.cpp only.  It is used in sdtty only, not sd.
-extern void put_line(const char the_line[]);
-
-// Temporary wrapper around put_line(const char the_line[]), until I
-// reimplement it using std::string_view.
-inline void put_line(std::string_view the_line) {
-  put_line(std::string(the_line).c_str());
-}
+// This is used in sdtty only, not sd.
+extern void put_line(std::string_view the_line);
 
 // Write a single character on the current output line.
 extern void put_char(int c);

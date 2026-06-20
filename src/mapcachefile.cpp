@@ -137,7 +137,7 @@ MAPPED_CACHE_FILE::MAPPED_CACHE_FILE(int numsourcefiles,
                                     FILE_SHARE_READ, 0, OPEN_EXISTING,
                                     FILE_ATTRIBUTE_NORMAL, 0);
 
-   if (!innards->filehandle || (int) innards->filehandle == ~0) return;
+   if (!innards->filehandle || innards->filehandle == INVALID_HANDLE_VALUE) return;
 
    innards->maphandle = CreateFileMapping(innards->filehandle, 0,
                                           PAGE_READONLY, 0, 0, 0);
@@ -219,7 +219,7 @@ void MAPPED_CACHE_FILE::map_for_writing(int clientmapfilesizeinbytes)
 
    // Close the handles that we had, because they were read-only.
 
-   if (innards->filehandle && (int) innards->filehandle != ~0)
+   if (innards->filehandle && innards->filehandle != INVALID_HANDLE_VALUE)
       CloseHandle(innards->filehandle);
    if (innards->maphandle)
       CloseHandle(innards->maphandle);

@@ -171,23 +171,25 @@ extern void erase_last_n(int n)
 {
 }
 
-extern void put_line(const char the_line[])
+extern void put_line(std::string_view the_line)
 {
    if (sdtty_no_console) {
       // No funny stuff at all.
       // By leaving "use_escapes_for_drawing_people" at zero, we know
       // that the line will be nothing but ASCII text.
-      fputs(the_line, stdout);
+      fwrite(the_line.data(), 1, the_line.size(), stdout);
    }
    else {
       // We need to watch for escape characters
       // denoting people to be printed in color.
 
-      char c;
-      while ((c = *the_line++)) {
+      auto it = the_line.begin();
+      auto end = the_line.end();
+      while (it != end) {
+         char c = *it++;
          if (c == '\013') {
-            int personidx = (*the_line++) & 7;
-            int persondir = (*the_line++) & 0xF;
+            int personidx = (*it++) & 7;
+            int persondir = (*it++) & 0xF;
 
             int randomized_person_color = personidx;
 
